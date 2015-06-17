@@ -9,15 +9,23 @@ import (
 	"strings"
 	"regexp"
 	"strconv"
+	"methodnameextractor"
+	"errors"
+	"path/filepath"
 )
 
 var session *sh.Session
+var methodNameExtractors map[string]func(string, uint) string = make(map[string]func(string, uint) string)
 
 func main() {
+	methodNameExtractors[".cs"] = methodnameextractor.GetMethodNameFromLineCsharp
+	methodNameExtractors[".java"] = methodnameextractor.GetMethodNameFromLineJava
+
+
 	session = sh.NewSession()
 	session.SetDir("/home/erik/Code/NetClean/proactive")
 
-	gitLog := getLog()
+	gitLog := getLog()[6:] // TODO: Remove skip here
 	for _, commit := range(gitLog) {
 		if isBugFixCommit(&commit) {
 			fmt.Printf("%s indicates a bugfix\n", commit.Message)
@@ -25,7 +33,19 @@ func main() {
 			modifiedFiles := getModifiedFiles(commit.Hash)
 			for _, modifiedFile := range(modifiedFiles) {
 				modifiedLines := getLinesModifiedInFile(commit.Hash, modifiedFile)
-				log.Fatalf("%v\n", modifiedLines)
+
+				for _, modifiedLine := range modifiedLines {
+					contents := getFileContents(commit.Hash, modifiedFile)
+					methodName, err := getMethodNameFromLine(modifiedFile, contents, modifiedLine)
+					if err == nil {
+						log.Printf("The method name on %s:%d is %s\n", modifiedFile, modifiedLine, methodName)
+						// TODO: Use this method name :) Print it to CSV or something.
+					} else {
+						log.Printf("Unable to get method name from %s:%d - %v\n", modifiedFile, modifiedLine, err)
+					}
+				}
+
+				log.Fatalln("BYE!") // TODO: Remove
 			}
 		}
 	}
@@ -135,4 +155,25 @@ func keys (theMap map[uint]struct{}) []uint {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func getFileContents(commitHash string, file string) string {
+	// git show hash:"file"
+	rawOutput, err := session.Command("git", "show", commitHash+":"+file).CombinedOutput()
+	if err != nil {
+		log.Panicf("Unable to get which lines was modified in %s.\n%s\n", file, rawOutput)
+	}
+	return string(rawOutput)
+}
+
+func getMethodNameFromLine(fileName string, fileContents string, lineNumber uint) (string, error) {
+	fmt.Printf("Getting the method name on line %d in %s\n",lineNumber, fileName)
+
+	fileEnding := filepath.Ext(fileName)
+	extractor := methodNameExtractors[fileEnding]
+	if extractor == nil {
+		return "", errors.New("No method name extractor found for " + fileEnding)
+	}
+
+	return extractor(fileContents, lineNumber), nil
 }
