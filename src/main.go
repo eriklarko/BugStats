@@ -6,26 +6,30 @@ import (
 	"log"
 	"asd"
 	"encoding/json"
+	"strings"
 )
 
 var session *sh.Session
 
 func main() {
-	// git log --pretty="{\"hash\": \"%H\", \"message\": \"%B\"}"
 	session = sh.NewSession()
-	session.SetDir("/home/erik/Code/Privat/BrewersLittleHelper")
+	session.SetDir("/home/erik/Code/NetClean/proactive")
 
 	gitLog := getLog()
-	fmt.Printf("%v", gitLog)
+	for _, commit := range(gitLog) {
+		if isBugFixCommit(&commit) {
+			fmt.Printf("%s indicates a bugfix\n", commit.Message)
+		}
+	}
 }
 
 func getLog() []asd.HashAndMessage {
-	rawOuput, err := session.Command("git", "log", "--pretty={\"hash\": \"%H\", \"message\": \"%f\"},").Output()
+	rawOutput, err := session.Command("git", "log", "--pretty={\"hash\": \"%H\", \"message\": \"%f\"},").Output()
 	if err != nil {
 		log.Panicf("Unable to get the git log, %v\n", err)
 	}
 
-	padded := []byte("[" + string(rawOuput[:len(rawOuput)-2]) + "]")
+	padded := []byte("[" + string(rawOutput[:len(rawOutput)-2]) + "]")
 
 	var gitLog []asd.HashAndMessage
 	err = json.Unmarshal(padded, &gitLog)
@@ -33,4 +37,9 @@ func getLog() []asd.HashAndMessage {
 		log.Panicf("Unable to parse the git log, %v\n", err)
 	}
 	return gitLog
+}
+
+func isBugFixCommit(commit *asd.HashAndMessage) bool {
+	message := strings.ToLower(commit.Message)
+	return strings.Contains(message, "fixes") || strings.Contains(message, "bugfix") || strings.Contains(message, "bug-fix")
 }
