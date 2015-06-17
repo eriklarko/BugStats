@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/codeskyblue/go-sh"
 	"log"
-	"asd"
+	"git"
 	"encoding/json"
 	"strings"
 	"regexp"
@@ -31,7 +31,7 @@ func main() {
 	}
 }
 
-func getLog() []asd.HashAndMessage {
+func getLog() []git.HashAndMessage {
 	rawOutput, err := session.Command("git", "log", "--pretty={\"hash\": \"%H\", \"message\": \"%f\"},").Output()
 	if err != nil {
 		log.Panicf("Unable to get the git log, %v\n", err)
@@ -39,7 +39,7 @@ func getLog() []asd.HashAndMessage {
 
 	padded := []byte("[" + string(rawOutput[:len(rawOutput)-2]) + "]")
 
-	var gitLog []asd.HashAndMessage
+	var gitLog []git.HashAndMessage
 	err = json.Unmarshal(padded, &gitLog)
 	if err != nil {
 		log.Panicf("Unable to parse the git log, %v\n", err)
@@ -47,7 +47,7 @@ func getLog() []asd.HashAndMessage {
 	return gitLog
 }
 
-func isBugFixCommit(commit *asd.HashAndMessage) bool {
+func isBugFixCommit(commit *git.HashAndMessage) bool {
 	message := strings.ToLower(commit.Message)
 	return strings.Contains(message, "fixes") || strings.Contains(message, "bugfix") || strings.Contains(message, "bug-fix")
 }

@@ -1,4 +1,4 @@
-package asd
+package git
 
 type HashAndMessage struct {
 	Hash string `json:"hash" binding:"required"`
