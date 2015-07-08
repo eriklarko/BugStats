@@ -1,5 +1,5 @@
 package methodnameextractor
 
-func GetMethodNameFromLineCsharp(file string, line uint) string {
-  return "c#"
+func GetMethodNameFromLineCsharp(file string, line uint) (string, error) {
+  return "c#", nil
 }

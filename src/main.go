@@ -7,12 +7,11 @@ import (
 	"git"
 	"strings"
 	"methodnameextractor"
-	"errors"
 	"path/filepath"
 )
 
 var session *sh.Session
-var methodNameExtractors map[string]func(string, uint) string = make(map[string]func(string, uint) string)
+var methodNameExtractors map[string]func(string, uint) (string, error) = make(map[string]func(string, uint) (string, error))
 
 func main() {
 	methodNameExtractors[".cs"] = methodnameextractor.GetMethodNameFromLineCsharp
@@ -22,7 +21,7 @@ func main() {
 	session.SetDir("/home/erik/Code/NetClean/proactive")
 
 
-	analyze(&git.HashAndMessage{Hash: "f2da0220bbaf29afb769df64e230dc4c4828d2bf"})
+	analyzeBuggyMethods(&git.HashAndMessage{Hash: "f2da0220bbaf29afb769df64e230dc4c4828d2bf"})
 	log.Fatalln("BYE!") // TODO: Remove
 
 	gitLog, err := git.GetLog(session)
@@ -32,7 +31,7 @@ func main() {
 	for _, commit := range(gitLog) {
 		if isBugFixCommit(&commit) {
 			fmt.Printf("%s indicates a bugfix (%s)\n", commit.Message, commit.Hash)
-			analyze(&commit)
+			analyzeBuggyMethods(&commit)
 		}
 	}
 }
@@ -42,13 +41,12 @@ func isBugFixCommit(commit *git.HashAndMessage) bool {
 	return strings.Contains(message, "fixes") || strings.Contains(message, "bugfix") || strings.Contains(message, "bug-fix")
 }
 
-func analyze(commit *git.HashAndMessage) {
+func analyzeBuggyMethods(commit *git.HashAndMessage) {
 	modifiedFiles, err := git.GetModifiedFiles(session, commit.Hash)
 	if err != nil {
 		log.Panicln(err)
 	}
 
-	fmt.Printf("  Modified files: %v\n", len(modifiedFiles))
 	for _, modifiedFile := range(modifiedFiles) {
 		if (modifiedFile.FileChange != git.MODIFIED) {
 			continue
@@ -60,7 +58,7 @@ func analyze(commit *git.HashAndMessage) {
 			continue
 		}
 
-		fmt.Printf("    Lines in %s, %v\n", modifiedFile.FileName, modifiedLines)
+		fmt.Printf("  Lines in %s, %v\n", modifiedFile.FileName, modifiedLines)
 
 		contents, err := git.GetFileContents(session, commit.Hash, modifiedFile.FileName)
 		if err != nil {
@@ -68,8 +66,19 @@ func analyze(commit *git.HashAndMessage) {
 			continue
 		}
 
+
+		fileEnding := filepath.Ext(modifiedFile.FileName)
+		extractor := methodNameExtractors[fileEnding]
+		if extractor == nil {
+			log.Println("No method name extractor found for " + fileEnding)
+			continue
+		}
+
 		for _, modifiedLine := range modifiedLines {
-			methodName, err := getMethodNameFromLine(modifiedFile.FileName, contents, modifiedLine)
+			// TODO: Invoke the secret sauce java program.
+			//fmt.Printf("Getting the method name on line %d in %s\n",lineNumber, fileName)
+			methodName, err := extractor(contents, modifiedLine)
+
 			if err == nil {
 				log.Printf("The method name on %s:%d is %s\n", modifiedFile.FileName, modifiedLine, methodName)
 				// TODO: Use this method name :) Print it to CSV or something.
@@ -78,16 +87,4 @@ func analyze(commit *git.HashAndMessage) {
 			}
 		}
 	}
-}
-
-func getMethodNameFromLine(fileName string, fileContents string, lineNumber uint) (string, error) {
-	//fmt.Printf("Getting the method name on line %d in %s\n",lineNumber, fileName)
-
-	fileEnding := filepath.Ext(fileName)
-	extractor := methodNameExtractors[fileEnding]
-	if extractor == nil {
-		return "", errors.New("No method name extractor found for " + fileEnding)
-	}
-
-	return extractor(fileContents, lineNumber), nil
 }
