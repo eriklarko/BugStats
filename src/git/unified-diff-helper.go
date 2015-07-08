@@ -1,20 +1,21 @@
 package git
 
 import (
-	"log"
 	"strconv"
 	"regexp"
 	"github.com/codeskyblue/go-sh"
+	"errors"
+	"fmt"
 )
 
 // TODO: Not tested enough
-func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string) []uint {
+func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string) ([]uint, error) {
 	// git diff commitHash commitHash^ -- "file"
 	cmd := session.Command("bash", "-c", "git diff -U0 " + commitHash + " " + commitHash + "^ -- \"" + file + "\"")
 	cmd.ShowCMD = true
 	rawOutput, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Panicf("Unable to get which lines was modified in %s.\n%s\n", file, rawOutput)
+		return nil, errors.New(fmt.Sprintf("Unable to get which lines was modified in %s.\n%s\n", file, rawOutput))
 	}
 
 	unifiedDiffAffectedLinesRegExp := regexp.MustCompile("(@@.*@@)")
@@ -22,18 +23,21 @@ func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string)
 
 	totalAffectedRows := make(map[uint]struct{})
 	for _, hunkHead := range (affectedLinesData) {
-		affectedRows := getRowsFromHunkHead(hunkHead)
+		affectedRows, err := getRowsFromHunkHead(hunkHead)
+		if err != nil {
+			return nil, err
+		}
 		addAll(affectedRows, totalAffectedRows)
 	}
 
-	return keys(totalAffectedRows)
+	return keys(totalAffectedRows), nil
 }
 
-func getRowsFromHunkHead(hunkHead string) []uint {
+func getRowsFromHunkHead(hunkHead string) ([]uint, error) {
 	unifiedDiffLinesChangedInOldFileRegExp := regexp.MustCompile("-(\\d+)(,(\\d+))?")
 	raw := unifiedDiffLinesChangedInOldFileRegExp.FindAllStringSubmatch(hunkHead, -1)
 	if len(raw) != 1 {
-		log.Panicf("Something went wrong parsing %s, got wrong number of outer groups (%v)\n", hunkHead, raw)
+		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, got wrong number of outer groups (%v)\n", hunkHead, raw))
 	}
 
 	var rawRow string
@@ -45,20 +49,20 @@ func getRowsFromHunkHead(hunkHead string) []uint {
 			rawNumberOfRows = "1"
 		}
 	} else {
-		log.Panicf("Something went wrong parsing %s, got wrong number of inner groups (%v)\n", hunkHead, raw)
+		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, got wrong number of inner groups (%v)\n", hunkHead, raw))
 	}
 
 	row, err := strconv.Atoi(rawRow)
 	if err != nil {
-		log.Panicf("Something went wrong parsing %s, the row is not a number (%v)\n", hunkHead, rawRow)
+		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, the row is not a number (%v)\n", hunkHead, rawRow))
 	}
 	numRows, err := strconv.Atoi(rawNumberOfRows)
 	if err != nil {
-		log.Panicf("Something went wrong parsing %s, the number of rows is not a number (%v)\n", hunkHead, rawNumberOfRows)
+		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, the number of rows is not a number (%v)\n", hunkHead, rawNumberOfRows))
 	}
 
 	//fmt.Printf("    %s -> %v, %v\n", hunkHead, row, numRows)
-	return expandRowNumberAndNumberOfAffectedRows(uint(row), uint(numRows))
+	return expandRowNumberAndNumberOfAffectedRows(uint(row), uint(numRows)), nil
 }
 
 func expandRowNumberAndNumberOfAffectedRows(row uint, numberOfRows uint) []uint {

@@ -17,7 +17,7 @@ var methodNameExtractors map[string]func(string, uint) string = make(map[string]
 func main() {
 	methodNameExtractors[".cs"] = methodnameextractor.GetMethodNameFromLineCsharp
 	methodNameExtractors[".java"] = methodnameextractor.GetMethodNameFromLineJava
-	
+
 	session = sh.NewSession()
 	session.SetDir("/home/erik/Code/NetClean/proactive")
 
@@ -25,7 +25,10 @@ func main() {
 	analyze(&git.HashAndMessage{Hash: "f2da0220bbaf29afb769df64e230dc4c4828d2bf"})
 	log.Fatalln("BYE!") // TODO: Remove
 
-	gitLog := git.GetLog(session)
+	gitLog, err := git.GetLog(session)
+	if err != nil {
+		log.Fatalln(err)
+	}
 	for _, commit := range(gitLog) {
 		if isBugFixCommit(&commit) {
 			fmt.Printf("%s indicates a bugfix (%s)\n", commit.Message, commit.Hash)
@@ -40,19 +43,29 @@ func isBugFixCommit(commit *git.HashAndMessage) bool {
 }
 
 func analyze(commit *git.HashAndMessage) {
-	modifiedFiles := git.GetModifiedFiles(session, commit.Hash)
+	modifiedFiles, err := git.GetModifiedFiles(session, commit.Hash)
+	if err != nil {
+		log.Panicln(err)
+	}
+
 	fmt.Printf("  Modified files: %v\n", len(modifiedFiles))
 	for _, modifiedFile := range(modifiedFiles) {
 		if (modifiedFile.FileChange != git.MODIFIED) {
 			continue
 		}
 
-		modifiedLines := git.GetLinesModifiedInFile(session, commit.Hash, modifiedFile.FileName)
+		modifiedLines, err := git.GetLinesModifiedInFile(session, commit.Hash, modifiedFile.FileName)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
 		fmt.Printf("    Lines in %s, %v\n", modifiedFile.FileName, modifiedLines)
 
 		contents, err := git.GetFileContents(session, commit.Hash, modifiedFile.FileName)
 		if err != nil {
-			log.Panicln(err.Error())
+			log.Println(err)
+			continue
 		}
 
 		for _, modifiedLine := range modifiedLines {

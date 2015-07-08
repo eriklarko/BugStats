@@ -1,17 +1,16 @@
 package git
 
 import (
-	"log"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/codeskyblue/go-sh"
 )
 
-func GetLog(session *sh.Session) []HashAndMessage {
+func GetLog(session *sh.Session) ([]HashAndMessage, error) {
 	rawOutput, err := session.Command("git", "log", "--pretty={\"hash\": \"%H\", \"message\": \"%f\"},").Output()
 	if err != nil {
-		log.Panicf("Unable to get the git log, %v\n", err)
+		return nil, errors.New(fmt.Sprintf("Unable to get the git log, %v", err))
 	}
 
 	padded := []byte("[" + string(rawOutput[:len(rawOutput)-2]) + "]")
@@ -19,9 +18,9 @@ func GetLog(session *sh.Session) []HashAndMessage {
 	var gitLog []HashAndMessage
 	err = json.Unmarshal(padded, &gitLog)
 	if err != nil {
-		log.Panicf("Unable to parse the git log, %v\n", err)
+		return nil, errors.New(fmt.Sprintf("Unable to parse the git log, %v", err))
 	}
-	return gitLog
+	return gitLog, nil
 }
 
 
