@@ -19,6 +19,11 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+	apa := findMethodsModifiedInCommit("/home/erik/Code/YetAnotherGTDApp", &git.HashAndMessage{Hash: "81c571351668507703ea54c88526ab987d0bb83a"})
+	for _, method := range apa {
+		fmt.Println(method)
+	}
+	os.Exit(0)
 
 	outputFile, err := os.Create("./output")
 	if err != nil {

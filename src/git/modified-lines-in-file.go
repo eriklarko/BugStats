@@ -11,7 +11,7 @@ import (
 // TODO: Not tested enough
 func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string) ([]uint, error) {
 	// git diff commitHash commitHash^ -- "file"
-	cmd := session.Command("bash", "-c", "git diff -U0 " + commitHash + " " + commitHash + "^ -- \"" + file + "\"")
+	cmd := session.Command("bash", "-c", "git show " + commitHash + " -- \"" + file + "\"")
 	rawOutput, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to get which lines was modified in %s.\n%s\n", file, rawOutput))
