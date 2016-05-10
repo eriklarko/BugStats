@@ -36,11 +36,30 @@ public class Main {
     private static void writeResultsToStdOut(String[] args, LineToMethodRegister register) {
         System.out.println("[");
         for (int i = 1; i < args.length; i++) {
-            int line = Integer.parseInt(args[i]);
-            Optional<LineToMethodRegister.Method> methodOnLine = register.getMethodOnLine(line);
-            System.out.println(LineAndMethodJsonOutput.toJson(line, methodOnLine));
+            System.out.println(String.join(",\n", printLine(register, args[i])));
         }
         System.out.println("]");
+    }
+
+    private static String[] printLine(LineToMethodRegister register, String arg) {
+        if (arg.contains(" ")) {
+            String[] rawLines = arg.split(" ");
+
+            String[] toReturn = new String[rawLines.length];
+            for (int i = 0; i < rawLines.length; i++) {
+                int line = Integer.parseInt(rawLines[i]);
+                toReturn[i] = getMethodOnLineAsJson(register, line);
+            }
+            return toReturn;
+        } else {
+            int line = Integer.parseInt(arg);
+            return new String[] { getMethodOnLineAsJson(register, line) };
+        }
+    }
+
+    private static String getMethodOnLineAsJson(LineToMethodRegister register, int line) {
+        Optional<LineToMethodRegister.Method> methodOnLine = register.getMethodOnLine(line);
+        return LineAndMethodJsonOutput.toJson(line, methodOnLine);
     }
 
     private static LineToMethodRegister buildLineToMethodRegister(String fileToParse) throws IOException {
@@ -58,6 +77,7 @@ public class Main {
         Lexer lexer = new Java8Lexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
         Java8Parser parser = new Java8Parser(tokens);
-        return parser.compilationUnit();
+        ParseTree tree = parser.compilationUnit();
+        return tree;
     }
 }

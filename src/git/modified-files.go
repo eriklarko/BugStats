@@ -13,21 +13,22 @@ func GetModifiedFiles(session *sh.Session, commitHash string) ([]*FileChange, er
 	// TODO: How does the git diff --name-only output look for moved files?
 	// TODO: Does this work for the first commit?
 
-	rawOutput, err := session.Command("git", "diff", "--name-status", commitHash, commitHash + "^").Output()
+	//rawOutput, err := session.Command("git", "diff", "--name-status", commitHash, commitHash + "^").Output()
+	rawOutput, err := session.Command("git", "show", "--oneline", "--name-status", commitHash).Output()
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to get list of files modified in %s. %v", commitHash, err))
 	}
 
 	rawRows := strings.Split(string(rawOutput), "\n")
 	fileChanges := make([]*FileChange, 0)
-	for _, rawRow := range(rawRows) {
+	for _, rawRow := range(rawRows[1:]) {
 		if (len(rawRow) == 0) {
 			continue
 		}
 
 		change, err := getChangeFromChar(rawRow[0])
 		if err != nil {
-			return nil, errors.New(fmt.Sprintf("Unable to change to file %s. %v", rawRow, err))
+			return nil, errors.New(fmt.Sprintf("Unable to read change to file %s. %v", rawRow, err))
 		}
 		lineParts := strings.Split(rawRow, "\t")
 		name := lineParts[1]

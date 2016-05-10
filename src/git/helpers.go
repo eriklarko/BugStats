@@ -7,22 +7,22 @@ import (
 	"github.com/codeskyblue/go-sh"
 )
 
-func GetLog(session *sh.Session) ([]HashAndMessage, error) {
+func GetCommitHistory(session *sh.Session) ([]*HashAndMessage, error) {
 	rawOutput, err := session.Command("git", "log", "--pretty={\"hash\": \"%H\", \"message\": \"%f\"},").Output()
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to get the git log, %v", err))
 	}
 
+	// The raw output from the log command is not a valid JSON array, this makes it one
 	padded := []byte("[" + string(rawOutput[:len(rawOutput)-2]) + "]")
 
-	var gitLog []HashAndMessage
+	var gitLog []*HashAndMessage
 	err = json.Unmarshal(padded, &gitLog)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to parse the git log, %v", err))
 	}
 	return gitLog, nil
 }
-
 
 func GetFileContents(session *sh.Session, commitHash string, file string) (string, error) {
 	// git show hash:"file"

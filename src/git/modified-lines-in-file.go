@@ -12,7 +12,6 @@ import (
 func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string) ([]uint, error) {
 	// git diff commitHash commitHash^ -- "file"
 	cmd := session.Command("bash", "-c", "git diff -U0 " + commitHash + " " + commitHash + "^ -- \"" + file + "\"")
-	cmd.ShowCMD = true
 	rawOutput, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Unable to get which lines was modified in %s.\n%s\n", file, rawOutput))
@@ -34,7 +33,7 @@ func GetLinesModifiedInFile(session *sh.Session, commitHash string, file string)
 }
 
 func getRowsFromHunkHead(hunkHead string) ([]uint, error) {
-	unifiedDiffLinesChangedInOldFileRegExp := regexp.MustCompile("-(\\d+)(,(\\d+))?")
+	unifiedDiffLinesChangedInOldFileRegExp := regexp.MustCompile("-(\\d+)(,(\\d+))? ")
 	raw := unifiedDiffLinesChangedInOldFileRegExp.FindAllStringSubmatch(hunkHead, -1)
 	if len(raw) != 1 {
 		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, got wrong number of outer groups (%v)\n", hunkHead, raw))
@@ -46,7 +45,7 @@ func getRowsFromHunkHead(hunkHead string) ([]uint, error) {
 		rawRow = raw[0][1]
 		rawNumberOfRows = raw[0][3]
 		if len(rawNumberOfRows) == 0 {
-			rawNumberOfRows = "1"
+			rawNumberOfRows = "0"
 		}
 	} else {
 		return nil, errors.New(fmt.Sprintf("Something went wrong parsing %s, got wrong number of inner groups (%v)\n", hunkHead, raw))
