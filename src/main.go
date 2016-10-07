@@ -15,15 +15,12 @@ func main() {
 	git.MethodNameExtractors[".cs"] = methodnameextractor.GetMethodNamesFromLineCsharp
 	git.MethodNameExtractors[".java"] = methodnameextractor.GetMethodNamesFromLineJava
 
-	files, err := findFilesModified("/home/erik/Code/YetAnotherGTDApp")
+	pathToRepo := getPathToRepo();
+	log.Printf("Finding buggy files in %s\n", pathToRepo)
+	files, err := findFilesModified(pathToRepo)
 	if err != nil {
 		log.Panic(err)
 	}
-	apa := findMethodsModifiedInCommit("/home/erik/Code/YetAnotherGTDApp", &git.HashAndMessage{Hash: "81c571351668507703ea54c88526ab987d0bb83a"})
-	for _, method := range apa {
-		fmt.Println(method)
-	}
-	os.Exit(0)
 
 	outputFile, err := os.Create("./output")
 	if err != nil {
@@ -35,6 +32,21 @@ func main() {
 		fmt.Fprintf(outputFile, "%s;%d\n", file, count)
 	}
 	fmt.Printf("Wrote %d row(s) to %s\n", len(files), outputFile.Name())
+}
+
+func getPathToRepo() string {
+	if (len(os.Args) != 2) {
+		log.Panicln("usage: bugstats PATH-TO-REPO")
+	}
+	pathToRepo := os.Args[1];
+
+	if (len(pathToRepo) == 0) {
+		log.Panicln("usage: bugstats PATH-TO-REPO")
+	} else {
+		return pathToRepo
+	}
+
+	return "";
 }
 
 func findFilesModified(pathToRepo string) (map[string]uint, error) {
